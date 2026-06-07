@@ -918,11 +918,20 @@ static unsigned int tcp_xmit_size_goal(struct sock *sk, u32 mss_now,
 	return max(size_goal, mss_now);
 }
 
+/**
+ * Compute the sending MSS.
+ * @param[in] sk socket
+ * @param[out] size_goal
+ * @param[in] flags
+ */
 int tcp_send_mss(struct sock *sk, int *size_goal, int flags)
 {
 	int mss_now;
 
 	mss_now = tcp_current_mss(sk);
+	/**
+	 * If MSG_OOB, we need send it now, so disable GSO.
+	 */
 	*size_goal = tcp_xmit_size_goal(sk, mss_now, !(flags & MSG_OOB));
 
 	return mss_now;
@@ -962,7 +971,17 @@ static int tcp_downgrade_zcopy_pure(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-
+/**
+ * @brief Schedule TCP write memory for data transmission
+ * 
+ * 1. Regular allocation from socker wmem;
+ * 2. Emergency memory scheduling.
+ *
+ * @param[inout] sk   	Socket structure containing memory accounting state (modified)
+ * @param[in]    copy  	# of bytes requested to schedule
+ * 
+ * @return # of bytes actually schedulable (may be less than requested)
+ */
 int tcp_wmem_schedule(struct sock *sk, int copy)
 {
 	int left;
@@ -1044,8 +1063,8 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 	int flags, err, copied = 0;
 	int mss_now = 0, size_goal, copied_syn = 0;
 	int process_backlog = 0;
-	int zc = 0;
-	long timeo;
+	int zc = 0; // Enable Zero-Copy
+	long timeo; // Timeout of operation
 
 	flags = msg->msg_flags;
 
@@ -1127,6 +1146,7 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 restart:
 	mss_now = tcp_send_mss(sk, &size_goal, flags);
 
+	// Check socket state
 	err = -EPIPE;
 	if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN))
 		goto do_error;
@@ -1198,6 +1218,7 @@ new_segment:
 				skb_zcopy_downgrade_managed(skb);
 			}
 
+			// Schedule wmem
 			copy = tcp_wmem_schedule(sk, copy);
 			if (!copy)
 				goto wait_for_space;

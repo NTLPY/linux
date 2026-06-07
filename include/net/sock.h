@@ -2236,6 +2236,21 @@ static inline void sk_gso_disable(struct sock *sk)
 	sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
 }
 
+/**
+ * @brief Copy data from userspace and calculate checksum, maybe nocache determined by socket feature.
+ * 
+ * 1. Need calculate chksum: copy and calculate chksum;
+ * 2. Support nocache-copy: no-cache copy;
+ * 3. Otherwise: copy.
+ * 
+ * @param[in]    sk     The socket
+ * @param[inout] skb    The socket buffer
+ * @param[inout] from   Userspace iterator pointing to source data
+ * @param[in]    to     Destination address in kernel memory (skb data area)
+ * @param[in]    copy   # of bytes to copy
+ * @param[in]    offset Offset in the skb data buffer
+ * @returns 0 on successful copy, -EFAULT if data copy from userspace fails
+ */
 static inline int skb_do_copy_data_nocache(struct sock *sk, struct sk_buff *skb,
 					   struct iov_iter *from, char *to,
 					   int copy, int offset)
@@ -2267,6 +2282,22 @@ static inline int skb_add_data_nocache(struct sock *sk, struct sk_buff *skb,
 	return err;
 }
 
+/**
+ * @brief Copy data from userspace to a page in a socket buffer
+ * 
+ * 1. Copy data (maybe no-cache);
+ * 2. Update socket buffer.
+ * 3. Update socket wmem/mem.
+ *
+ * @param[inout] sk     The socket
+ * @param[inout] from   Userspace iterator pointing to source data
+ * @param[inout] skb    The socket buffer
+ * @param[inout] page   Destination memory page to receive the copied data
+ * @param[in]    off    Offset within the page where data should be written
+ * @param[in]    copy   # of bytes to copy
+ *
+ * @return 0 on success, negative error code (e.g., -EFAULT) on copy failure
+ */
 static inline int skb_copy_to_page_nocache(struct sock *sk, struct iov_iter *from,
 					   struct sk_buff *skb,
 					   struct page *page,
@@ -2598,6 +2629,12 @@ static inline long sock_rcvtimeo(const struct sock *sk, bool noblock)
 	return noblock ? 0 : sk->sk_rcvtimeo;
 }
 
+/**
+ * Get timeout of a operation.
+ * @param[in] sk The socket.
+ * @param[in] nonblock If operation is non-block.
+ * @returns Timeout of the operation.
+ */
 static inline long sock_sndtimeo(const struct sock *sk, bool noblock)
 {
 	return noblock ? 0 : sk->sk_sndtimeo;

@@ -5,7 +5,9 @@
 #ifndef __ASSEMBLY__
 #include <linux/thread_info.h>
 
+/* Return the current task_struct pointer (generic). */
 #define get_current() (current_thread_info()->task)
+/* A shortcut to get the current task_struct pointer. */
 #define current get_current()
 #endif
 

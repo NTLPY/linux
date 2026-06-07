@@ -658,7 +658,12 @@ unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu);
 unsigned int tcp_current_mss(struct sock *sk);
 u32 tcp_clamp_probe0_to_user_timeout(const struct sock *sk, u32 when);
 
-/* Bound MSS / TSO packet size with the half of the window */
+/**
+ * Bound MSS / TSO packet size with the half of the window.
+ * @param[in] tp The socket.
+ * @param[in] pktsize MSS / TSO.
+ * @returns MSS / TSO cut by window.
+ */
 static inline int tcp_bound_to_half_wnd(struct tcp_sock *tp, int pktsize)
 {
 	int cutoff;
@@ -676,7 +681,7 @@ static inline int tcp_bound_to_half_wnd(struct tcp_sock *tp, int pktsize)
 		cutoff = tp->max_window;
 
 	if (cutoff && pktsize > cutoff)
-		return max_t(int, cutoff, 68U - tp->tcp_header_len);
+		return max_t(int, cutoff, 68U - tp->tcp_header_len); // 68U from RFC791
 	else
 		return pktsize;
 }

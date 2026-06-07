@@ -287,6 +287,9 @@ lookup_protocol:
 		err = -EPROTONOSUPPORT;
 	}
 
+        /**
+         * No protocol found, try load new module
+         */
 	if (unlikely(err)) {
 		if (try_loading_module < 2) {
 			rcu_read_unlock();
@@ -309,6 +312,9 @@ lookup_protocol:
 			goto out_rcu_unlock;
 	}
 
+        /**
+         * Check permission to open a raw socket
+         */
 	err = -EPERM;
 	if (sock->type == SOCK_RAW && !kern &&
 	    !ns_capable(net->user_ns, CAP_NET_RAW))
@@ -319,6 +325,9 @@ lookup_protocol:
 	answer_flags = answer->flags;
 	rcu_read_unlock();
 
+	/**
+	 * Allocate sock
+	 */
 	WARN_ON(!answer_prot->slab);
 
 	err = -ENOMEM;
@@ -326,10 +335,16 @@ lookup_protocol:
 	if (!sk)
 		goto out;
 
+	/**
+	 * Check default value for sock
+	 */
 	err = 0;
 	if (INET_PROTOSW_REUSE & answer_flags)
 		sk->sk_reuse = SK_CAN_REUSE;
 
+	/**
+	 * Initialize csk locks
+	 */
 	if (INET_PROTOSW_ICSK & answer_flags)
 		inet_init_csk_locks(sk);
 
@@ -1139,6 +1154,9 @@ static const struct proto_ops inet_sockraw_ops = {
 #endif
 };
 
+/**
+ * 
+ */
 static const struct net_proto_family inet_family_ops = {
 	.family = PF_INET,
 	.create = inet_create,
@@ -1950,12 +1968,23 @@ static struct packet_type ip_packet_type __read_mostly = {
 	.list_func = ip_list_rcv,
 };
 
+/**
+ * IPv4: Initializtion
+ * 
+ * 1. Register TCP / UDP / Raw / PING (For socket operation)
+ * 2. Register to socket address family (For socket creation)
+ * 3. Initialize network sysctl infrastructure (net/ipv4/route)
+ * 4. Add TCP / UDP / Raw / PING protocol handler (For receiving from bottom)
+ * 5. Setup protocol switch TCP / UDP / Raw / PING (For socket creation)
+ * 6. Initialize ARP / IP / TCP / UDP / UDP-Lite
+ */
 static int __init inet_init(void)
 {
 	struct inet_protosw *q;
 	struct list_head *r;
 	int rc;
 
+	// Check control buffer size
 	sock_skb_cb_check_size(sizeof(struct inet_skb_parm));
 
 	raw_hashinfo_init(&raw_v4_hashinfo);

@@ -14,6 +14,7 @@ struct task_struct;
 
 extern struct task_struct *__current;
 
+/* Return the current task_struct pointer (ARM). */
 static __always_inline __attribute_const__ struct task_struct *get_current(void)
 {
 	struct task_struct *cur;
@@ -64,6 +65,7 @@ static __always_inline __attribute_const__ struct task_struct *get_current(void)
 	return cur;
 }
 
+/* A shortcut to get the current task_struct pointer. */
 #define current get_current()
 
 #endif /* __ASSEMBLY__ */

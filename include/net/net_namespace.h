@@ -483,6 +483,9 @@ struct ctl_table;
 #define register_net_sysctl(net, path, table)	\
 	register_net_sysctl_sz(net, path, table, ARRAY_SIZE(table))
 #ifdef CONFIG_SYSCTL
+/**
+ * Initialize sysctl support for network
+ */
 int net_sysctl_init(void);
 struct ctl_table_header *register_net_sysctl_sz(struct net *net, const char *path,
 					     struct ctl_table *table, size_t table_size);

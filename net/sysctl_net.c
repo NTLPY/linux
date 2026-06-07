@@ -76,6 +76,9 @@ static struct ctl_table_root net_sysctl_root = {
 	.set_ownership = net_ctl_set_ownership,
 };
 
+/**
+ * Initialize sysctl support for a new network namespace.
+ */
 static int __net_init sysctl_net_init(struct net *net)
 {
 	setup_sysctl_set(&net->sysctls, &net_sysctl_root, is_seen);
@@ -87,11 +90,15 @@ static void __net_exit sysctl_net_exit(struct net *net)
 	retire_sysctl_set(&net->sysctls);
 }
 
+/**
+ * Per-network namespace operations for sysctl.
+ */
 static struct pernet_operations sysctl_pernet_ops = {
 	.init = sysctl_net_init,
 	.exit = sysctl_net_exit,
 };
 
+/* Initialize the /proc/sys/net directory. */
 static struct ctl_table_header *net_header;
 __init int net_sysctl_init(void)
 {

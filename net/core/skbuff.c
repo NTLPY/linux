@@ -4887,6 +4887,9 @@ static void skb_extensions_init(void) {}
 #define FLAG_SKB_NO_MERGE	0
 #endif
 
+/**
+ * Socket-Buffer: Initialization
+ */
 void __init skb_init(void)
 {
 	skbuff_cache = kmem_cache_create_usercopy("skbuff_head_cache",

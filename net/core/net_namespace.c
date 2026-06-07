@@ -116,6 +116,9 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 	return 0;
 }
 
+/**
+ * ops_init - Initialize pernet operations for a given net namespace.
+ */
 static int ops_init(const struct pernet_operations *ops, struct net *net)
 {
 	struct net_generic *ng;
@@ -1198,6 +1201,17 @@ static void free_exit_list(struct pernet_operations *ops, struct list_head *net_
 }
 
 #ifdef CONFIG_NET_NS
+/**
+ * Register pernet operations, applying to all existing net namespaces
+ * @list: A list, ops will be inserted before head if success.
+ *        The list should be locked.
+ * @ops: Pernet operations, caller must ensure its lifetime extends beyond
+ *       the corresponding __unregister_pernet_operations() call.
+ *
+ * On error, all initialized namespaces are cleaned up.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
 static int __register_pernet_operations(struct list_head *list,
 					struct pernet_operations *ops)
 {

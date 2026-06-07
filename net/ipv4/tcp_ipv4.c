@@ -218,6 +218,9 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (usin->sin_family != AF_INET)
 		return -EAFNOSUPPORT;
 
+	/**
+	 * Check for source routing
+	 */
 	nexthop = daddr = usin->sin_addr.s_addr;
 	inet_opt = rcu_dereference_protected(inet->inet_opt,
 					     lockdep_sock_is_held(sk));
@@ -227,6 +230,9 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		nexthop = inet_opt->opt.faddr;
 	}
 
+	/**
+	 * Routing
+	 */
 	orig_sport = inet->inet_sport;
 	orig_dport = usin->sin_port;
 	fl4 = &inet->cork.fl.u.ip4;
@@ -240,16 +246,25 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		return err;
 	}
 
+	/**
+	 * MC/BC not supported
+	 */
 	if (rt->rt_flags & (RTCF_MULTICAST | RTCF_BROADCAST)) {
 		ip_rt_put(rt);
 		return -ENETUNREACH;
 	}
 
+	/**
+	 * Update dest address (WHY?)
+	 */
 	if (!inet_opt || !inet_opt->opt.srr)
 		daddr = fl4->daddr;
 
 	tcp_death_row = &sock_net(sk)->ipv4.tcp_death_row;
 
+	/**
+	 * Update source address (if not exists)
+	 */
 	if (!inet->inet_saddr) {
 		err = inet_bhash2_update_saddr(sk,  &fl4->saddr, AF_INET);
 		if (err) {
@@ -260,6 +275,9 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		sk_rcv_saddr_set(sk, inet->inet_saddr);
 	}
 
+	/**
+	 * ?
+	 */
 	if (tp->rx_opt.ts_recent_stamp && inet->inet_daddr != daddr) {
 		/* Reset inherited state */
 		tp->rx_opt.ts_recent	   = 0;
@@ -268,9 +286,15 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			WRITE_ONCE(tp->write_seq, 0);
 	}
 
+	/**
+	 * Set destination address & port
+	 */
 	inet->inet_dport = usin->sin_port;
 	sk_daddr_set(sk, daddr);
 
+	/**
+	 * ?
+	 */
 	inet_csk(sk)->icsk_ext_hdr_len = 0;
 	if (inet_opt)
 		inet_csk(sk)->icsk_ext_hdr_len = inet_opt->opt.optlen;

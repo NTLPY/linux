@@ -29,6 +29,10 @@ EXPORT_SYMBOL(inet_protos);
 const struct net_offload __rcu *inet_offloads[MAX_INET_PROTOS] __read_mostly;
 EXPORT_SYMBOL(inet_offloads);
 
+/**
+ * Add a new protocol receive handler.
+ * @returns 0 on success, -1 on protocol exists.
+ */
 int inet_add_protocol(const struct net_protocol *prot, unsigned char protocol)
 {
 	return !cmpxchg((const struct net_protocol **)&inet_protos[protocol],
@@ -36,6 +40,10 @@ int inet_add_protocol(const struct net_protocol *prot, unsigned char protocol)
 }
 EXPORT_SYMBOL(inet_add_protocol);
 
+/**
+ * Add a new offload.
+ * @returns 0 on success, -1 on protocol exists.
+ */
 int inet_add_offload(const struct net_offload *prot, unsigned char protocol)
 {
 	return !cmpxchg((const struct net_offload **)&inet_offloads[protocol],

@@ -299,8 +299,14 @@ static int move_addr_to_user(struct sockaddr_storage *kaddr, int klen,
 	return __put_user(klen, ulen);
 }
 
+/**
+ * Socket-Management: Pointer to socket_inode cache allocator
+ */
 static struct kmem_cache *sock_inode_cachep __ro_after_init;
 
+/**
+ * Socket-Management: Allocate socket_inode and initialize socket
+ */
 static struct inode *sock_alloc_inode(struct super_block *sb)
 {
 	struct socket_alloc *ei;
@@ -321,6 +327,9 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+/**
+ * Socket-Management: Free socket_inode
+ */
 static void sock_free_inode(struct inode *inode)
 {
 	struct socket_alloc *ei;
@@ -329,6 +338,9 @@ static void sock_free_inode(struct inode *inode)
 	kmem_cache_free(sock_inode_cachep, ei);
 }
 
+/**
+ * Socket-Management: Constructor for socket_inode
+ */
 static void init_once(void *foo)
 {
 	struct socket_alloc *ei = (struct socket_alloc *)foo;
@@ -336,6 +348,9 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
+/**
+ * Socket-Management: Initialize socket_inode cache
+ */
 static void init_inodecache(void)
 {
 	sock_inode_cachep = kmem_cache_create("sock_inode_cache",
@@ -348,6 +363,9 @@ static void init_inodecache(void)
 	BUG_ON(sock_inode_cachep == NULL);
 }
 
+/**
+ * Socket-Management: Filesystem Superblock Operations
+ */
 static const struct super_operations sockfs_ops = {
 	.alloc_inode	= sock_alloc_inode,
 	.free_inode	= sock_free_inode,
@@ -363,6 +381,9 @@ static char *sockfs_dname(struct dentry *dentry, char *buffer, int buflen)
 				d_inode(dentry)->i_ino);
 }
 
+/**
+ * Socket-Management: Filesystem Superblock Operations
+ */
 static const struct dentry_operations sockfs_dentry_operations = {
 	.d_dname  = sockfs_dname,
 };
@@ -409,6 +430,9 @@ static const struct xattr_handler * const sockfs_xattr_handlers[] = {
 	NULL
 };
 
+/**
+ * Socket-Management: Filesystem Initialization
+ */
 static int sockfs_init_fs_context(struct fs_context *fc)
 {
 	struct pseudo_fs_context *ctx = init_pseudo(fc, SOCKFS_MAGIC);
@@ -420,8 +444,14 @@ static int sockfs_init_fs_context(struct fs_context *fc)
 	return 0;
 }
 
+/**
+ * Socket-Management: Filesystem Mount Point
+ */
 static struct vfsmount *sock_mnt __read_mostly;
 
+/**
+ * Socket-Management: Filesystem Defination
+ */
 static struct file_system_type sock_fs_type = {
 	.name =		"sockfs",
 	.init_fs_context = sockfs_init_fs_context,
@@ -1641,6 +1671,16 @@ int sock_create_kern(struct net *net, int family, int type, int protocol, struct
 }
 EXPORT_SYMBOL(sock_create_kern);
 
+/**
+ * Checking arguments and create socket.
+ *
+ * 1. Check arguments
+ * 2. Call real create socket
+ *
+ * @param[in] family	Protocol family (AF_INET, ...)
+ * @param[in] type		Type of socket and flags, SOCK_* | SOCK_CLOEXEC | SOCK_NONBLOCK
+ * @param[in] protocol	Protocol (0, ...)
+ */
 static struct socket *__sys_socket_create(int family, int type, int protocol)
 {
 	struct socket *sock;
@@ -1652,10 +1692,12 @@ static struct socket *__sys_socket_create(int family, int type, int protocol)
 	BUILD_BUG_ON(SOCK_CLOEXEC & SOCK_TYPE_MASK);
 	BUILD_BUG_ON(SOCK_NONBLOCK & SOCK_TYPE_MASK);
 
+	// type only accept SOCK_TYPE* | (SOCK_CLOEXEC | SOCK_NONBLOCK)
 	if ((type & ~SOCK_TYPE_MASK) & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
 		return ERR_PTR(-EINVAL);
 	type &= SOCK_TYPE_MASK;
 
+	// Do real creation
 	retval = sock_create(family, type, protocol, &sock);
 	if (retval < 0)
 		return ERR_PTR(retval);
@@ -1698,20 +1740,34 @@ __weak noinline int update_socket_protocol(int family, int type, int protocol)
 
 __bpf_hook_end();
 
+/**
+ * SYSCALL: create socket and map to fd
+ *
+ * 1. Create socket
+ * 2. Map socket to fd
+ *
+ * @param[in] family	Protocol family (AF_INET, ...)
+ * @param[in] type		Type of socket and flags, SOCK_* | SOCK_CLOEXEC | SOCK_NONBLOCK
+ * @param[in] protocol	Protocol (0, ...)
+ * @returns fd
+ */
 int __sys_socket(int family, int type, int protocol)
 {
 	struct socket *sock;
 	int flags;
 
+	// Do real creation
 	sock = __sys_socket_create(family, type,
 				   update_socket_protocol(family, type, protocol));
 	if (IS_ERR(sock))
 		return PTR_ERR(sock);
 
+	// Extract none-pure type
 	flags = type & ~SOCK_TYPE_MASK;
 	if (SOCK_NONBLOCK != O_NONBLOCK && (flags & SOCK_NONBLOCK))
 		flags = (flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
 
+	// Map socket to fd (with only O_CLOEXEC | O_NONBLOCK)
 	return sock_map_fd(sock, flags & (O_CLOEXEC | O_NONBLOCK));
 }
 
@@ -3259,6 +3315,17 @@ bool sock_is_registered(int family)
 	return family < NPROTO && rcu_access_pointer(net_families[family]);
 }
 
+/**
+ * @brief Socket-Management: Initializtion
+ *
+ * This function performs the following initialization steps:
+ * 1. Initialize network sysctl infrastructure
+ * 2. Initialize skbuff SLAB cache
+ * 3. Initialize inode_socket cache
+ * 4. Register & Mount socket filesystem
+ * 5. Initialize netfilter
+ * 6. Initialize PTP
+ */
 static int __init sock_init(void)
 {
 	int err;
